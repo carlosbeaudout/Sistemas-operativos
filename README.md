@@ -1,170 +1,78 @@
-# Planificador Dieciochero
+# Komikan Concurrente
 
-## ¿Qué hace el programa?
+## 1. Descripción
 
-El programa recibe un archivo con actividades y las ejecuta respetando las dependencias entre ellas.
+El programa implementa un torneo de Komikan en el que cada partida enfrenta a un Puma contra un equipo de doce perros. El servidor Matchmaker organiza las partidas y permite ejecutar varias mesas simultáneamente.
 
-Cada actividad se ejecuta como un proceso usando `fork()`.
+## 2. Compilación
 
-También se usa un pipe para que los procesos avisen al proceso principal cuando terminan.
-
-El programa permite indicar cuántos procesos pueden estar ejecutándose al mismo tiempo.
-
----
-
-## Cómo compilar
-
-Se utiliza:
+Desde la carpeta donde se encuentra `torneo.cpp`, ejecutar:
 
 ```bash
-g++ -Wall -Wextra -std=c++17 planificador.cpp -lpthread -o planificador
+g++ -Wall -Wextra -std=c++17 torneo.cpp -o torneo -pthread
 ```
 
-El programa no utiliza threads, pero se mantiene `-lpthread` porque es parte del comando indicado para la tarea.
+## 3. Ejecución
 
----
-
-## Cómo ejecutar
-
-El programa se ejecuta con:
+El programa recibe la cantidad de clientes, el máximo de mesas simultáneas y, opcionalmente, un archivo de configuración.
 
 ```bash
-./planificador plan.txt K
-```
-
-Por ejemplo:
-
-```bash
-./planificador plan.txt 2
-```
-
-El número `2` indica que pueden ejecutarse como máximo 2 procesos al mismo tiempo.
-
----
-
-## Archivo de entrada
-
-El archivo tiene el siguiente formato:
-
-```text
-ID : Nombre : Tiempo : Dependencias
+./torneo N M [config.txt]
 ```
 
 Ejemplo:
 
-```text
-1 : prender_carbon : 500 :
-2 : comprar_carne : 1200 :
-3 : comprar_pan : 300 :
-4 : asar_longaniza : 800 : 1,2
-5 : armar_choripan : 250 : 3,4
-6 : servir_mesa : 100 : 5
+```bash
+./torneo 4 2 config.txt
 ```
 
-Una actividad que no tenga tiempo recibe un tiempo aleatorio entre 100 y 5000 milisegundos.
+- `N`: cantidad de clientes que participarán en el torneo.
+- `M`: máximo de mesas que pueden estar activas simultáneamente.
+- `config.txt`: archivo opcional con la configuración inicial de las partidas.
 
-Las dependencias indican qué actividades deben terminar antes.
+Cada dos clientes forman una partida. Si queda un cliente sin pareja, no participa.
 
-Por ejemplo:
-
-```text
-4 : asar_longaniza : 800 : 1,2
-```
-
-significa que la actividad 4 necesita que terminen las actividades 1 y 2.
-
----
-
-## Cómo funciona
-
-Primero se lee el archivo y se guardan las actividades.
-
-Después el programa revisa las dependencias de cada actividad.
-
-Cuando una actividad puede comenzar, se crea un proceso con `fork()`.
-
-El programa lleva un contador para no superar el número máximo `K` de procesos.
-
-Cuando un proceso termina, envía un mensaje por el pipe con:
-
-```text
-PID:ID:estado
-```
-
-Por ejemplo:
-
-```text
-79308:1:0
-```
-
-El `0` significa que la actividad terminó correctamente.
-
-El proceso principal recibe el mensaje y marca la actividad como terminada.
-
----
-
-## Si una actividad falla
-
-Si una actividad informa un estado distinto de `0`, se marca como fallida.
-
-Las actividades que dependan de ella también se cancelan.
-
-Las actividades que no dependan de ella pueden seguir ejecutándose.
-
----
-
-## Ctrl+C
-
-Si se presiona `Ctrl+C`, el programa recibe `SIGINT` y termina los procesos que estén ejecutándose.
-
----
-
-## Pruebas realizadas
-
-Se probó el programa con:
+Para guardar la salida en un archivo:
 
 ```bash
-./planificador plan.txt 2
+./torneo 4 2 config.txt > salida.txt 2>&1
 ```
 
-También se probó el manejo de errores de las actividades y la cancelación de sus dependencias.
+## 4. Configuración
 
-Además, se realizó una prueba con 10.000 actividades:
+El archivo de configuración puede contener los siguientes parámetros:
 
-```bash
-./planificador plan10000.txt 10
+```text
+min_delay_ms=50
+max_delay_ms=300
+seed=12345
+puma_pos=12
+dogs_positions=0,1,2,3,4,5,6,7,8,9,10,11
 ```
 
-Las 10.000 actividades fueron procesadas correctamente.
+- `min_delay_ms` y `max_delay_ms`: intervalo de espera de los movimientos, en milisegundos.
+- `seed`: semilla para la generación de retardos aleatorios.
+- `puma_pos`: posición inicial del Puma.
+- `dogs_positions`: posiciones iniciales de los doce perros.
 
----
+Las posiciones iniciales deben ser válidas y no repetirse.
 
-## Funciones principales
+## 5. Funciones implementadas
 
-### `dependenciasTerminadas()`
+- **Matchmaker:** organiza los clientes en parejas y asigna las partidas.
+- **Ejecución concurrente:** permite que distintas partidas se desarrollen en paralelo, respetando el máximo de mesas establecido.
+- **Hilos de piezas:** representan los movimientos del Puma y de los perros.
+- **Juez:** supervisa el estado del tablero y determina el resultado de cada partida.
+- **Reglas del juego:** el Puma gana al capturar seis perros y los perros ganan si el Puma queda sin movimientos válidos.
+- **Sincronización:** utiliza mutexes, variables de condición y semáforos para proteger el tablero, coordinar los hilos y limitar las mesas activas.
+- **Manejo de interrupciones:** permite detener el servidor mediante `Ctrl+C` y finalizar las partidas activas de forma ordenada.
+- **Manejo de fallos:** contempla la terminación inesperada de un hilo mientras mantiene el mutex del tablero mediante un mutex robusto.
 
-Revisa si las dependencias de una actividad ya terminaron.
+## 6. Justificación del diseño
 
-### `dependenciaFallida()`
+Se utilizan hilos para permitir la ejecución concurrente de las piezas y las partidas. Los mutexes protegen el estado compartido del tablero para evitar modificaciones simultáneas. Las variables de condición permiten notificar cambios al juez, mientras que el semáforo limita la cantidad de partidas activas.
 
-Revisa si alguna dependencia falló.
+El Matchmaker separa la organización del torneo de la ejecución de cada partida. Cada mesa tiene su propio tablero y juez, lo que permite que las partidas funcionen de manera independiente.
 
-### `manejarSIGINT()`
+Además, se contempla la interrupción del servidor y la finalización de los hilos para liberar los recursos utilizados. El mutex robusto permite detectar determinados fallos de hilos y tratar la partida como un abandono.
 
-Se utiliza para recibir `Ctrl+C`.
-
-### `main()`
-
-Se encarga de leer el archivo, crear los procesos, usar el pipe y controlar las actividades.
-
----
-
-## Decisiones de diseño
-
-Se usó `fork()` porque la tarea pide trabajar con procesos.
-
-Se usó un pipe para que los procesos puedan avisar cuando terminan.
-
-El proceso principal se encarga de revisar las dependencias y decidir qué actividad puede ejecutarse.
-
-No se utilizaron threads.

@@ -1,0 +1,14 @@
+# Tiempos de movimiento en milisegundos
+min_delay_ms=50
+max_delay_ms=300
+
+# Semilla para repetir la secuencia aleatoria
+seed=12345
+
+# Posiciones:
+# 0..24 = cuadrícula 5x5
+# 25 = trono (T)
+# 26 = intersección superior izquierda
+# 27 = intersección superior derecha
+puma_pos=12
+dogs_positions=0,1,2,3,4,5,6,7,8,9,10,11
