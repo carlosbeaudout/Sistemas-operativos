@@ -54,7 +54,6 @@ struct Tablero {
     int perrosCapturados = 0;
     int movimientos = 0;
 
-    // Pieza que estaba usando el mutex.
     int piezaEnSeccion = -1;
 
     string motivo;
@@ -283,7 +282,6 @@ void conectar(Tablero& t, int a, int b) {
 }
 
 void crearVecinos(Tablero& t) {
-    // Cuadricula 5x5: conexiones horizontales y verticales.
     for (int r = 0; r < 5; ++r) {
         for (int c = 0; c < 5; ++c) {
             int id = r * 5 + c;
@@ -293,7 +291,6 @@ void crearVecinos(Tablero& t) {
         }
     }
 
-    // Posiciones superiores: 25 = trono, 26 y 27 = intersecciones superiores.
     conectar(t, 25, 26);
     conectar(t, 25, 27);
     conectar(t, 25, 2);
@@ -355,12 +352,10 @@ vector<int> movimientosValidos(const Tablero& t, int pieza) {
 
     if (origen == -1) return opciones;
 
-    // Movimiento normal a una posicion conectada y libre.
     for (int destino : t.vecinos[origen]) {
         if (t.casillas[destino] == -1) opciones.push_back(destino);
     }
 
-    // El Puma puede saltar un perro si la casilla siguiente esta libre.
     if (pieza == 0) {
         vector<array<int, 3>> lineas;
 
@@ -605,7 +600,6 @@ void ejecutarPartida(int partida, int mesa, Config cfg) {
 
     imprimirTablero(tablero, partida, mesa);
 
-    // Comprobar si el Puma comienza acorralado.
     if (movimientosValidos(tablero, 0).empty()) {
         tablero.terminado = true;
         tablero.perrosGanan = true;
@@ -618,7 +612,6 @@ void ejecutarPartida(int partida, int mesa, Config cfg) {
     vector<thread> piezas;
 
     try {
-        // Solo crear los hilos si la partida no ha terminado.
         if (!tablero.terminado) {
             piezas.emplace_back([&] {
                 moverPieza(partida, mesa, 0, &tablero, &cfg);
